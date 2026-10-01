@@ -1,0 +1,1750 @@
+<!-- Navigation Header -->
+<header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 p-2 rounded-xl text-white flex items-center justify-center w-10 h-10 shadow-lg shadow-blue-500/30">
+                <i class="fa-solid font-bold text-xl fa-user-clock"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight">WorkLog <span class="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full font-normal border border-blue-400/30">PRO</span></h1>
+                <p class="text-xs text-slate-400">クラウド勤怠管理 & シート連携</p>
+            </div>
+        </div>
+
+        <!-- Header Controls: Role Selector, GAS Status, Settings -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+            <!-- Role Mode Switcher Pill -->
+            <div class="bg-slate-800 p-1 rounded-xl flex items-center border border-slate-700">
+                <button id="btnRoleWorker" onclick="switchRole('worker')" class="px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 bg-blue-600 text-white shadow">
+                    <i class="fa-solid fa-user"></i>
+                    <span class="hidden xs:inline">勤務者</span>
+                </button>
+                <button id="btnRoleAdmin" onclick="promptAdminMode()" class="px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-user-gear"></i>
+                    <span class="hidden xs:inline">管理者</span>
+                    <span id="adminLockIcon" class="text-[10px]"><i class="fa-solid fa-lock ml-0.5"></i></span>
+                </button>
+            </div>
+
+            <!-- Sync Status Indicator -->
+            <div id="gasStatusBadge" class="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                <span class="w-2 h-2 rounded-full bg-slate-500" id="gasStatusDot"></span>
+                <span id="gasStatusText">GAS未連携</span>
+            </div>
+
+            <!-- Settings Button (Hidden by default for workers) -->
+            <button id="btnHeaderSettings" onclick="openSettingsModal()" class="hidden p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors flex items-center space-x-1 text-sm" title="設定">
+                <i class="fa-solid fa-gear"></i>
+                <span class="hidden sm:inline">設定</span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- Main Content Container -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 flex-grow w-full">
+    
+    <!-- Toast Notification Area -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Role Status Bar Banner -->
+    <div id="roleBanner" class="mb-6 p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center space-x-3">
+            <span id="roleBadgeIcon" class="p-2.5 rounded-xl bg-blue-100 text-blue-700 font-bold text-lg">
+                <i class="fa-solid fa-user"></i>
+            </span>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span id="roleTitleLabel" class="text-xs font-bold uppercase tracking-wider text-blue-600">勤務者モード</span>
+                    <span id="activeUserBadge" class="text-xs bg-slate-100 text-slate-700 font-medium px-2 py-0.5 rounded-md border border-slate-200">操作対象: 山田 太郎</span>
+                </div>
+                <p id="roleDescLabel" class="text-xs text-slate-500 mt-0.5">自身の打刻、本日の勤務状況、および月間勤怠履歴を確認・共有できます。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 1: WORKER MODE CONTAINER -->
+    <div id="viewWorkerContainer">
+        <!-- Top Grid Layout: Punch Clock & Monthly Stats -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+            
+            <!-- Punch Clock Main Card (5 Cols on LG) -->
+            <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 flex flex-col justify-between relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+
+                <div>
+                    <!-- Date & Realtime Clock -->
+                    <div class="text-center mb-6">
+                        <p id="currentDate" class="text-sm font-semibold text-slate-500 tracking-wide uppercase mb-1">----年--月--日 (--)</p>
+                        <div id="currentTime" class="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-800 font-mono">00:00:00</div>
+                    </div>
+
+                    <!-- Current Status Display -->
+                    <div class="bg-slate-50 rounded-xl p-3.5 mb-6 border border-slate-100 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div id="statusDotPulse" class="relative flex h-3.5 w-3.5">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+                                <span id="statusDot" class="relative inline-flex rounded-full h-3.5 w-3.5 bg-slate-400"></span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-slate-400 block font-medium">現在のステータス</span>
+                                <span id="currentStatusText" class="text-base font-bold text-slate-700">未出勤</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-slate-400 block font-medium">本日の勤務時間</span>
+                            <span id="todayWorkTimer" class="text-sm font-bold text-slate-700 font-mono">00:00:00</span>
+                        </div>
+                    </div>
+
+                    <!-- Work Location / Method Selector -->
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">勤務区分 / 場所</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" onclick="setWorkType('出社')" id="workTypeOffice" class="work-type-btn py-1.5 px-3 text-xs font-medium rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-all text-center">
+                                <i class="fa-solid fa-building mr-1"></i>出社
+                            </button>
+                            <button type="button" onclick="setWorkType('リモート')" id="workTypeRemote" class="work-type-btn py-1.5 px-3 text-xs font-medium rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-all text-center">
+                                <i class="fa-solid fa-house-laptop mr-1"></i>リモート
+                            </button>
+                            <button type="button" onclick="setWorkType('直行直帰')" id="workTypeDirect" class="work-type-btn py-1.5 px-3 text-xs font-medium rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-all text-center">
+                                <i class="fa-solid fa-car mr-1"></i>直行/直帰
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Work Note / Memo -->
+                    <div class="mb-6">
+                        <input type="text" id="workNoteInput" placeholder="メモ（業務内容・移動など）" class="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                    </div>
+
+                    <!-- Action Punch Buttons -->
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <button id="btnClockIn" onclick="handleClockIn()" class="py-3.5 px-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 active:scale-[0.98] transition-all flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-play"></i>
+                            <span>出 勤</span>
+                        </button>
+
+                        <button id="btnClockOut" onclick="handleClockOut()" disabled class="py-3.5 px-4 rounded-xl font-bold text-slate-400 bg-slate-100 cursor-not-allowed transition-all flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-stop"></i>
+                            <span>退 勤</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="btnBreakStart" onclick="handleBreakStart()" disabled class="py-2.5 px-4 rounded-xl font-semibold text-xs text-slate-500 bg-slate-100 hover:bg-amber-500 hover:text-white transition-all flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-mug-hot"></i>
+                            <span>休憩開始</span>
+                        </button>
+
+                        <button id="btnBreakEnd" onclick="handleBreakEnd()" disabled class="py-2.5 px-4 rounded-xl font-semibold text-xs text-slate-500 bg-slate-100 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-briefcase"></i>
+                            <span>休憩終了</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Last Action Footer Info -->
+                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400">
+                    <span>最終打刻: <strong id="lastPunchTime" class="text-slate-600 font-mono">--:--</strong></span>
+                    <span id="syncModeIndicator" class="text-slate-400"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>自動同期 ON</span>
+                </div>
+            </div>
+
+            <!-- Personal Dashboard & Monthly Summary (7 Cols on LG) -->
+            <div class="lg:col-span-7 flex flex-col justify-between space-y-6">
+                
+                <!-- Month Selection & Personal Summary -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-3">
+                        <div>
+                            <h2 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                <i class="fa-solid fa-chart-pie text-blue-600"></i>
+                                今月の個人勤務サマリー
+                            </h2>
+                            <p class="text-xs text-slate-400">リアルタイム集計結果</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <input type="month" id="monthPicker" onchange="renderAttendanceTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            <button onclick="changeMonth(1)" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4 Stat Counters -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
+                            <span class="text-xs text-slate-500 font-medium block mb-1">出勤日数</span>
+                            <div class="flex items-baseline space-x-1">
+                                <span id="statDays" class="text-2xl font-extrabold text-slate-800">0</span>
+                                <span class="text-xs text-slate-400">日</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-blue-50/60 rounded-xl p-3.5 border border-blue-100/80">
+                            <span class="text-xs text-blue-600 font-medium block mb-1">総労働時間</span>
+                            <div class="flex items-baseline space-x-1">
+                                <span id="statTotalHours" class="text-2xl font-extrabold text-blue-700">0.0</span>
+                                <span class="text-xs text-blue-500">h</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-amber-50/60 rounded-xl p-3.5 border border-amber-100/80">
+                            <span class="text-xs text-amber-600 font-medium block mb-1">時間外・残業</span>
+                            <div class="flex items-baseline space-x-1">
+                                <span id="statOvertime" class="text-2xl font-extrabold text-amber-700">0.0</span>
+                                <span class="text-xs text-amber-500">h</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-purple-50/60 rounded-xl p-3.5 border border-purple-100/80">
+                            <span class="text-xs text-purple-600 font-medium block mb-1">1日平均時間</span>
+                            <div class="flex items-baseline space-x-1">
+                                <span id="statAvgHours" class="text-2xl font-extrabold text-purple-700">0.0</span>
+                                <span class="text-xs text-purple-500">h</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Spreadsheet Export Quick Banner -->
+                <div class="hidden bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-2xl p-6 shadow-md relative overflow-hidden flex-col justify-between">
+                    <div class="absolute -right-6 -bottom-6 opacity-10 text-white text-9xl pointer-events-none">
+                        <i class="fa-solid fa-file-excel"></i>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full font-medium backdrop-blur-sm">スプレッドシート連携</span>
+                            <button onclick="openExportModal()" class="text-xs text-emerald-100 hover:text-white underline flex items-center gap-1">
+                                <i class="fa-solid fa-sliders"></i> 出力形式選択
+                            </button>
+                        </div>
+                        <h3 class="text-xl font-bold mb-1">スプレッドシートへ自分のデータを出力</h3>
+                        <p class="text-emerald-100 text-xs leading-relaxed max-w-md">
+                            ワンクリックで現在選択中の月の勤怠データをコピー・CSV保存、またはGoogle Apps Scriptへ送信できます。
+                        </p>
+                    </div>
+
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <button onclick="copyTableForSpreadsheet()" class="bg-white text-emerald-800 hover:bg-emerald-50 px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-paste text-emerald-600"></i>
+                            <span>シート用にコピー (Ctrl+V用)</span>
+                        </button>
+                        <button onclick="exportToCSV()" class="bg-emerald-800/60 hover:bg-emerald-800 text-white border border-emerald-400/30 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-file-csv"></i>
+                            <span>CSVダウンロード</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 2: ADMIN MODE CONTAINER (HIDDEN BY DEFAULT) -->
+    <div id="viewAdminContainer" class="hidden space-y-6">
+        
+        <!-- Admin Realtime Live Status Overview Panel -->
+        <div class="bg-slate-900 text-white rounded-2xl p-6 shadow-lg relative overflow-hidden">
+            <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-800 pb-4 mb-4 gap-3">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="bg-purple-500/20 text-purple-300 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-purple-500/30">管理者ダッシュボード</span>
+                        <span class="text-xs text-slate-400" id="adminTodayDate">---- -- --</span>
+                    </div>
+                    <h2 class="text-xl font-extrabold mt-1">本日のチーム勤務リアルタイム状況</h2>
+                </div>
+                <div class="flex items-center space-x-3 text-xs">
+                    <span class="bg-emerald-500/20 text-emerald-300 px-3 py-1.5 rounded-xl border border-emerald-500/30 font-semibold">
+                        勤務中: <strong id="adminCountWorking" class="text-sm ml-1">0</strong> 名
+                    </span>
+                    <span class="bg-amber-500/20 text-amber-300 px-3 py-1.5 rounded-xl border border-amber-500/30 font-semibold">
+                        休憩中: <strong id="adminCountBreak" class="text-sm ml-1">0</strong> 名
+                    </span>
+                    <span class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 font-semibold">
+                        未出勤/退社: <strong id="adminCountOff" class="text-sm ml-1">0</strong> 名
+                    </span>
+                </div>
+            </div>
+
+            <!-- Live Status Cards Grid for All Employees -->
+            <div id="adminTeamGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <!-- Dynamic rendering of employee statuses -->
+            </div>
+        </div>
+
+        <!-- Admin Filters & Export Control Bar -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Month Filter -->
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">対象月</label>
+                    <input type="month" id="adminMonthPicker" onchange="renderAttendanceTable()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
+                </div>
+
+                <!-- Employee Filter -->
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">従業員フィルタ</label>
+                    <select id="adminEmployeeFilter" onchange="renderAttendanceTable()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
+                        <option value="ALL">全従業員を表示</option>
+                        <!-- Dynamic employee options -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Admin Action Buttons -->
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="copyTableForSpreadsheet()" class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold border border-emerald-200 transition-all flex items-center space-x-1.5">
+                    <i class="fa-solid fa-paste text-emerald-600"></i>
+                    <span>全データコピー (シート用)</span>
+                </button>
+                <button onclick="exportToCSV()" class="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-xl text-xs font-bold border border-blue-200 transition-all flex items-center space-x-1.5">
+                    <i class="fa-solid fa-file-csv text-blue-600"></i>
+                    <span>CSV出力</span>
+                </button>
+                <button onclick="syncAllToGAS()" class="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center space-x-1.5">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>表示分をGASへ一括送信</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Attendance History Table Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden mb-8 mt-6">
+        <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-blue-600"></i>
+                    <span id="tableTitleText">勤怠履歴ログ</span> (<span id="tableMonthLabel">----年--月</span>)
+                </h3>
+                <p class="text-xs text-slate-400" id="tableSubtext">修正や打刻漏れの補正が可能です</p>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <button onclick="openManualAddModal()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium px-3.5 py-2 rounded-xl transition-all flex items-center space-x-1.5 shadow-sm">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>手動で新規登録</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Table Container -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-100">
+                        <th class="py-3 px-4 font-semibold">日付 / 曜日</th>
+                        <th class="py-3 px-4 font-semibold" id="colHeaderEmployee">従業員名</th>
+                        <th class="py-3 px-4 font-semibold">区分</th>
+                        <th class="py-3 px-4 font-semibold">出勤</th>
+                        <th class="py-3 px-4 font-semibold">退勤</th>
+                        <th class="py-3 px-4 font-semibold">休憩時間</th>
+                        <th class="py-3 px-4 font-semibold">実働時間</th>
+                        <th class="py-3 px-4 font-semibold">残業</th>
+                        <th class="py-3 px-4 font-semibold">メモ</th>
+                        <th class="py-3 px-4 font-semibold text-center">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceTableBody" class="divide-y divide-slate-100 text-sm">
+                    <!-- Rows rendered dynamically via JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty State Display -->
+        <div id="emptyState" class="hidden py-12 text-center">
+            <i class="fa-regular fa-folder-open text-4xl text-slate-300 mb-3"></i>
+            <p class="text-slate-500 font-medium text-sm">該当する勤怠データがありません</p>
+            <p class="text-xs text-slate-400 mt-1">打刻するか、「手動で新規登録」から記録を追加してください</p>
+        </div>
+    </div>
+
+</main>
+
+<!-- MODAL 1: Settings & GAS Integration Modal -->
+<div id="settingsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden transform transition-all">
+        <div class="p-5 bg-slate-900 text-white flex items-center justify-between">
+            <h3 class="font-bold text-base flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-blue-400"></i>
+                システム設定 & 従業員マスタ
+            </h3>
+            <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div class="p-6 space-y-5 text-slate-700 text-sm max-h-[80vh] overflow-y-auto">
+            
+            <!-- Individual Employee Personal URLs Section -->
+            <div class="bg-blue-50/80 border border-blue-200/80 rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="font-bold text-xs text-blue-900 flex items-center gap-1.5">
+                        <i class="fa-solid fa-link text-blue-600"></i>
+                        従業員別 専用打刻URL一覧 (LINE共有用)
+                    </label>
+                    <span class="text-[10px] bg-blue-200/60 text-blue-800 px-2 py-0.5 rounded font-semibold">自動生成</span>
+                </div>
+                <p class="text-[11px] text-blue-700 leading-relaxed">
+                    以下の「コピー」ボタンを押すと、対象の従業員専用のURLがコピーされます。LINEやメールで共有すると、そのパートさんは名前選択不要・他人のデータ閲覧不可の状態で即座に打刻できます。
+                </p>
+                <div id="personalUrlList" class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+
+            <!-- Custom Base URL Setting -->
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">本番WebページのURL (公開後URLの補正)</label>
+                <input type="url" id="settingCustomBaseUrl" placeholder="https://your-domain.com/index.html" class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                <p class="text-[11px] text-slate-400 mt-1">
+                    ※ローカル環境（PC上）で操作中に正しい配布用URLを生成したい場合、公開予定のWebサイトURLをここに入力してください。
+                </p>
+            </div>
+
+            <!-- Employee List Master Management Section -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-xs font-bold text-slate-800">従業員マスタ登録 (管理者機能)</label>
+                    <span class="text-[10px] text-slate-400">改行区切りで複数指定可能</span>
+                </div>
+                <textarea id="settingEmployeeListText" rows="3" placeholder="山田 太郎&#10;佐藤 花子&#10;鈴木 一郎" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"></textarea>
+                <p class="text-[11px] text-slate-400 mt-1">※登録された名前は管理者画面のフィルターに反映されます。</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">1日の所定定時 (時間)</label>
+                    <input type="number" id="settingStandardHours" value="8" step="0.5" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">管理者パスコード (PIN)</label>
+                    <input type="password" id="settingAdminPin" value="1234" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-mono" placeholder="初期: 1234">
+                </div>
+            </div>
+
+            <hr class="border-slate-100">
+
+            <!-- GAS WebApp URL Section -->
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-bold text-slate-800">Google Apps Script (GAS) Web API URL</label>
+                    <span class="text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-medium">リアルタイム自動同期</span>
+                </div>
+                <input type="url" id="settingGasUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                <p class="text-[11px] text-slate-400 mt-1">
+                    ※打刻時や修正時にGoogleスプレッドシートへリアルタイム送信するGASのWebアプリURLを入力します。
+                </p>
+            </div>
+
+            <!-- GAS Code Helper Accordion -->
+            <details class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
+                <summary class="font-bold text-slate-700 cursor-pointer flex items-center justify-between">
+                    <span><i class="fa-solid fa-code text-blue-500 mr-1"></i> Google Apps Script (GAS) 用コード例を表示</span>
+                    <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                </summary>
+                <div class="mt-3 space-y-2 text-slate-600">
+                    <p>Googleスプレッドシートの「拡張機能」&gt;「Apps Script」に以下のコードを貼り付けて、「Webアプリ」としてデプロイ（アクセス許可: 全員）してください。</p>
+                    <pre class="bg-slate-900 text-slate-200 p-3 rounded-lg overflow-x-auto text-[11px] font-mono leading-relaxed select-all">
+
+function doPost(e) {
+var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+var data = JSON.parse(e.postData.contents);if (sheet.getLastRow() === 0) {
+sheet.appendRow($$"日付", "名前", "区分", "出勤", "退勤", "休憩時間", "実働時間", "残業時間", "メモ"$$);
+}sheet.appendRow([
+data.date,
+data.employeeName || '未指定',
+data.type,
+data.clockIn,
+data.clockOut,
+data.breakMinutes + '分',
+data.workHours + '時間',
+data.overtimeHours + '時間',
+data.note || ''
+]);return ContentService.createTextOutput(JSON.stringify({result: "success"}))
+.setMimeType(ContentService.MimeType.JSON);
+}            <div class="pt-2 flex justify-end space-x-3">
+                <button onclick="testGasConnection()" type="button" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-all">
+                    接続テスト
+                </button>
+                <button onclick="saveSettings()" type="button" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition-all">
+                    設定を保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Admin Passcode Modal -->
+<div id="adminAuthModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 text-center">
+        <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl font-bold">
+            <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h3 class="font-bold text-slate-800 text-base mb-1">管理者認証</h3>
+        <p class="text-xs text-slate-500 mb-4">管理者機能を利用するにはパスコードを入力してください<br><span class="text-[10px] text-slate-400">(初期パスコード: 1234)</span></p>
+
+        <input type="password" id="adminPinInput" maxlength="8" placeholder="パスコード" class="w-full text-center tracking-widest text-lg font-mono px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 outline-none mb-4">
+
+        <div class="flex space-x-2">
+            <button onclick="closeAdminAuthModal()" class="w-1/2 py-2.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-all">
+                キャンセル
+            </button>
+            <button onclick="verifyAdminAuth()" class="w-1/2 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-md transition-all">
+                認証・実行
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: Manual Add / Edit Attendance Modal -->
+<div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+        <div class="p-5 bg-slate-900 text-white flex items-center justify-between">
+            <h3 id="editModalTitle" class="font-bold text-base flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square text-blue-400"></i>
+                勤怠記録の編集
+            </h3>
+            <button onclick="closeEditModal()" class="text-slate-400 hover:text-white transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <form id="editForm" onsubmit="handleSaveEdit(event)" class="p-6 space-y-4 text-slate-700 text-sm">
+            <input type="hidden" id="editEntryId">
+
+            <!-- Target Employee Selector in Edit Modal -->
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">対象従業員</label>
+                <select id="editEmployeeSelect" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/20">
+                    <!-- Dynamic employee options -->
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">日付</label>
+                <input type="date" id="editDate" required class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">勤務区分</label>
+                    <select id="editType" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                        <option value="出社">出社</option>
+                        <option value="リモート">リモート</option>
+                        <option value="直行直帰">直行直帰</option>
+                        <option value="有給休暇">有給休暇</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">休憩時間 (分)</label>
+                    <input type="number" id="editBreakMinutes" min="0" step="5" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">出勤時刻</label>
+                    <input type="time" id="editClockIn" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">退勤時刻</label>
+                    <input type="time" id="editClockOut" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">メモ</label>
+                <input type="text" id="editNote" placeholder="業務内容や遅刻・早退理由など" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+            </div>
+
+            <div class="pt-3 flex items-center justify-between">
+                <button type="button" onclick="handleDeleteEntry()" id="btnDeleteEntry" class="text-xs text-rose-600 hover:text-rose-800 font-semibold flex items-center gap-1">
+                    <i class="fa-solid fa-trash-can"></i> 削除する
+                </button>
+                <div class="flex space-x-2">
+                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl transition-all">
+                        キャンセル
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition-all">
+                        保存する
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL 3: Export Details Modal -->
+<div id="exportModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
+        <div class="p-5 bg-slate-900 text-white flex items-center justify-between">
+            <h3 class="font-bold text-base flex items-center gap-2">
+                <i class="fa-solid fa-file-export text-emerald-400"></i>
+                スプレッドシートデータ出力オプション
+            </h3>
+            <button onclick="closeExportModal()" class="text-slate-400 hover:text-white transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <p class="text-xs text-slate-600 leading-relaxed">
+                集計データをGoogleスプレッドシートやExcel、その他の勤怠システムに取り込む形式を選択して出力できます。
+            </p>
+
+            <div class="space-y-3 pt-2">
+                <div class="p-4 rounded-xl border border-slate-200 hover:border-emerald-500 transition-all bg-slate-50 hover:bg-emerald-50/30 flex items-start justify-between cursor-pointer" onclick="copyTableForSpreadsheet()">
+                    <div class="flex items-start space-x-3">
+                        <div class="p-2 bg-emerald-100 text-emerald-700 rounded-lg mt-0.5">
+                            <i class="fa-solid fa-paste text-lg"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-xs">スプレッドシート直接貼り付け (TSVコピー)</h4>
+                            <p class="text-[11px] text-slate-500 mt-0.5">クリップボードにコピー後、スプレッドシートのセル(A1など)でCtrl+V(Cmd+V)を押すだけで綺麗に入力されます。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 hover:border-emerald-500 transition-all bg-slate-50 hover:bg-emerald-50/30 flex items-start justify-between cursor-pointer" onclick="exportToCSV()">
+                    <div class="flex items-start space-x-3">
+                        <div class="p-2 bg-blue-100 text-blue-700 rounded-lg mt-0.5">
+                            <i class="fa-solid fa-file-csv text-lg"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-xs">CSVファイルダウンロード (.csv)</h4>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Excelやスプレッドシートの「ファイル」→「インポート」から読み込める標準形式で保存します。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 hover:border-emerald-500 transition-all bg-slate-50 hover:bg-emerald-50/30 flex items-start justify-between cursor-pointer" onclick="syncAllToGAS()">
+                    <div class="flex items-start space-x-3">
+                        <div class="p-2 bg-purple-100 text-purple-700 rounded-lg mt-0.5">
+                            <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-xs">選択中の対象データを一括GAS送信</h4>
+                            <p class="text-[11px] text-slate-500 mt-0.5">設定されているGAS Web App URLへ、表示中のデータを一括して送信します。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-3 flex justify-end">
+                <button onclick="closeExportModal()" class="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-all">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* --- STATE MANAGEMENT --- */
+    let state = {
+        currentRole: 'worker', // 'worker' or 'admin'
+        activeEmployeeName: '山田 太郎',
+        employees: ['山田 太郎', '佐藤 花子', '鈴木 一郎'],
+        attendanceLogs: [],
+        
+        // Per-employee real-time status tracker
+        userLiveStates: {}, 
+
+        settings: {
+            standardHours: 8,
+            defaultBreakMinutes: 60,
+            gasUrl: '',
+            customBaseUrl: '', // Base URL for personal URL generation
+            adminPin: '1234'
+        }
+    };
+
+    let pendingAuthCallback = null;
+
+    const elements = {
+        // Role & Settings elements
+        btnRoleWorker: document.getElementById('btnRoleWorker'),
+        btnRoleAdmin: document.getElementById('btnRoleAdmin'),
+        btnHeaderSettings: document.getElementById('btnHeaderSettings'),
+        roleBanner: document.getElementById('roleBanner'),
+        roleBadgeIcon: document.getElementById('roleBadgeIcon'),
+        roleTitleLabel: document.getElementById('roleTitleLabel'),
+        roleDescLabel: document.getElementById('roleDescLabel'),
+        activeUserBadge: document.getElementById('activeUserBadge'),
+        viewWorkerContainer: document.getElementById('viewWorkerContainer'),
+        viewAdminContainer: document.getElementById('viewAdminContainer'),
+
+        // Admin Live Overview
+        adminTodayDate: document.getElementById('adminTodayDate'),
+        adminCountWorking: document.getElementById('adminCountWorking'),
+        adminCountBreak: document.getElementById('adminCountBreak'),
+        adminCountOff: document.getElementById('adminCountOff'),
+        adminTeamGrid: document.getElementById('adminTeamGrid'),
+        adminMonthPicker: document.getElementById('adminMonthPicker'),
+        adminEmployeeFilter: document.getElementById('adminEmployeeFilter'),
+
+        // Clock & Status Elements
+        currentDate: document.getElementById('currentDate'),
+        currentTime: document.getElementById('currentTime'),
+        currentStatusText: document.getElementById('currentStatusText'),
+        statusDot: document.getElementById('statusDot'),
+        statusDotPulse: document.getElementById('statusDotPulse'),
+        todayWorkTimer: document.getElementById('todayWorkTimer'),
+        lastPunchTime: document.getElementById('lastPunchTime'),
+        workNoteInput: document.getElementById('workNoteInput'),
+
+        // Punch Buttons
+        btnClockIn: document.getElementById('btnClockIn'),
+        btnClockOut: document.getElementById('btnClockOut'),
+        btnBreakStart: document.getElementById('btnBreakStart'),
+        btnBreakEnd: document.getElementById('btnBreakEnd'),
+
+        // Table & Stats
+        monthPicker: document.getElementById('monthPicker'),
+        attendanceTableBody: document.getElementById('attendanceTableBody'),
+        tableMonthLabel: document.getElementById('tableMonthLabel'),
+        tableTitleText: document.getElementById('tableTitleText'),
+        tableSubtext: document.getElementById('tableSubtext'),
+        emptyState: document.getElementById('emptyState'),
+        colHeaderEmployee: document.getElementById('colHeaderEmployee'),
+
+        statDays: document.getElementById('statDays'),
+        statTotalHours: document.getElementById('statTotalHours'),
+        statOvertime: document.getElementById('statOvertime'),
+        statAvgHours: document.getElementById('statAvgHours'),
+
+        gasStatusBadge: document.getElementById('gasStatusBadge'),
+        gasStatusDot: document.getElementById('gasStatusDot'),
+        gasStatusText: document.getElementById('gasStatusText')
+    };
+
+    window.onload = function() {
+        loadFromLocalStorage();
+        checkUrlUserParameter(); // URL Param handler for dedicated user URL
+        populateEmployeeDropdowns();
+        initializeDateAndClock();
+        initializeMonthPicker();
+        updateRoleUI();
+        updatePunchButtonsUI();
+        updateGasBadgeUI();
+        renderAttendanceTable();
+        renderAdminDashboard();
+        startTimerLoop();
+    };
+
+    // Handles URL query parameters like index.html?user=山田%20太郎
+    function checkUrlUserParameter() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userParam = urlParams.get('user');
+            if (userParam) {
+                const decodedUser = decodeURIComponent(userParam).trim();
+                if (state.employees.includes(decodedUser)) {
+                    state.activeEmployeeName = decodedUser;
+                    saveToLocalStorage();
+                }
+            }
+        } catch (e) {
+            console.error("URL Parameter parsing error:", e);
+        }
+    }
+
+    function loadFromLocalStorage() {
+        try {
+            const savedLogs = localStorage.getItem('worklog_logs_v2');
+            if (savedLogs) state.attendanceLogs = JSON.parse(savedLogs);
+
+            const savedSettings = localStorage.getItem('worklog_settings_v2');
+            if (savedSettings) state.settings = { ...state.settings, ...JSON.parse(savedSettings) };
+
+            const savedEmployees = localStorage.getItem('worklog_employees_v2');
+            if (savedEmployees) state.employees = JSON.parse(savedEmployees);
+
+            const savedLiveStates = localStorage.getItem('worklog_live_states_v2');
+            if (savedLiveStates) state.userLiveStates = JSON.parse(savedLiveStates);
+
+            const savedActiveUser = localStorage.getItem('worklog_active_user');
+            if (savedActiveUser && state.employees.includes(savedActiveUser)) {
+                state.activeEmployeeName = savedActiveUser;
+            } else if (state.employees.length > 0) {
+                state.activeEmployeeName = state.employees[0];
+            }
+        } catch (e) {
+            console.error("Local storage error:", e);
+        }
+    }
+
+    function saveToLocalStorage() {
+        try {
+            localStorage.setItem('worklog_logs_v2', JSON.stringify(state.attendanceLogs));
+            localStorage.setItem('worklog_settings_v2', JSON.stringify(state.settings));
+            localStorage.setItem('worklog_employees_v2', JSON.stringify(state.employees));
+            localStorage.setItem('worklog_live_states_v2', JSON.stringify(state.userLiveStates));
+            localStorage.setItem('worklog_active_user', state.activeEmployeeName);
+        } catch (e) {
+            console.error("Saving to local storage failed:", e);
+        }
+    }
+
+    function populateEmployeeDropdowns() {
+        // Populate admin filter dropdown
+        elements.adminEmployeeFilter.innerHTML = '<option value="ALL">全従業員を表示</option>';
+        state.employees.forEach(emp => {
+            const opt = document.createElement('option');
+            opt.value = emp;
+            opt.textContent = emp;
+            elements.adminEmployeeFilter.appendChild(opt);
+        });
+
+        // Populate modal edit dropdown
+        const editSelect = document.getElementById('editEmployeeSelect');
+        if (editSelect) {
+            editSelect.innerHTML = '';
+            state.employees.forEach(emp => {
+                const opt = document.createElement('option');
+                opt.value = emp;
+                opt.textContent = emp;
+                editSelect.appendChild(opt);
+            });
+        }
+
+        // Populate Dedicated URLs in Settings Modal
+        renderPersonalUrlList();
+    }
+
+    function renderPersonalUrlList() {
+        const container = document.getElementById('personalUrlList');
+        if (!container) return;
+        container.innerHTML = '';
+
+        let baseUrl = state.settings.customBaseUrl && state.settings.customBaseUrl.trim() !== ''
+            ? state.settings.customBaseUrl.trim()
+            : window.location.origin + window.location.pathname;
+
+        const isLocal = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        if (isLocal && (!state.settings.customBaseUrl || state.settings.customBaseUrl.trim() === '')) {
+            const warningBanner = document.createElement('div');
+            warningBanner.className = "p-2 rounded bg-amber-100 text-amber-800 text-[11px] mb-2 font-medium flex items-center gap-1.5";
+            warningBanner.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-600"></i> 現在ローカル環境で起動中です。Web上に公開するか、下の「本番WebページのURL」を入力すると正しい共有URLが生成されます。`;
+            container.appendChild(warningBanner);
+        }
+
+        state.employees.forEach(emp => {
+            const empUrl = `${baseUrl}?user=${encodeURIComponent(emp)}`;
+            const item = document.createElement('div');
+            item.className = "flex items-center justify-between bg-white p-2 rounded-lg border border-blue-100 text-xs";
+            item.innerHTML = `
+                <div class="flex items-center space-x-2 truncate mr-2">
+                    <span class="font-bold text-slate-800 whitespace-nowrap">${emp}</span>
+                    <span class="text-[10px] text-slate-400 font-mono truncate" title="${empUrl}">${empUrl}</span>
+                </div>
+                <button type="button" onclick="copyDedicatedUrl('${empUrl}', '${emp}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-[11px] whitespace-nowrap transition-all">
+                    <i class="fa-solid fa-copy mr-1"></i>URLコピー
+                </button>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function copyDedicatedUrl(url, empName) {
+        const textArea = document.createElement("textarea");
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showToast(`${empName} さんの専用URLをコピーしました！`, "success");
+        } catch (err) {
+            showToast("URLのコピーに失敗しました", "error");
+        }
+        document.body.removeChild(textArea);
+    }
+
+    function switchRole(role) {
+        state.currentRole = role;
+        updateRoleUI();
+        renderAttendanceTable();
+        if (role === 'admin') {
+            renderAdminDashboard();
+        }
+    }
+
+    function promptAdminMode() {
+        if (state.currentRole === 'admin') return;
+        pendingAuthCallback = () => {
+            switchRole('admin');
+            showToast("管理者モードに切り替えました", "success");
+        };
+        document.getElementById('adminPinInput').value = '';
+        document.getElementById('adminAuthModal').classList.remove('hidden');
+    }
+
+    function closeAdminAuthModal() {
+        pendingAuthCallback = null;
+        document.getElementById('adminAuthModal').classList.add('hidden');
+    }
+
+    function verifyAdminAuth() {
+        const inputPin = document.getElementById('adminPinInput').value;
+        const targetPin = state.settings.adminPin || '1234';
+
+        if (inputPin === targetPin) {
+            closeAdminAuthModal();
+            if (pendingAuthCallback) {
+                const cb = pendingAuthCallback;
+                pendingAuthCallback = null;
+                cb();
+            } else {
+                switchRole('admin');
+                showToast("管理者認証に成功しました", "success");
+            }
+        } else {
+            showToast("パスコードが正しくありません", "error");
+        }
+    }
+
+    function updateRoleUI() {
+        const isWorker = state.currentRole === 'worker';
+
+        if (isWorker) {
+            elements.btnRoleWorker.className = "px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 bg-blue-600 text-white shadow";
+            elements.btnRoleAdmin.className = "px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 text-slate-400 hover:text-white";
+            
+            // Hide header settings for workers
+            if (elements.btnHeaderSettings) elements.btnHeaderSettings.classList.add('hidden');
+
+            elements.viewWorkerContainer.classList.remove('hidden');
+            elements.viewAdminContainer.classList.add('hidden');
+
+            elements.roleBadgeIcon.className = "p-2.5 rounded-xl bg-blue-100 text-blue-700 font-bold text-lg";
+            elements.roleBadgeIcon.innerHTML = '<i class="fa-solid fa-user"></i>';
+            elements.roleTitleLabel.textContent = "勤務者モード";
+            elements.roleTitleLabel.className = "text-xs font-bold uppercase tracking-wider text-blue-600";
+            
+            elements.activeUserBadge.textContent = `操作対象: ${state.activeEmployeeName}`;
+            elements.roleDescLabel.textContent = "自身の打刻、本日の勤務状況、および月間勤怠履歴を確認・共有できます。";
+
+            elements.tableTitleText.textContent = "個人勤怠履歴ログ";
+            elements.tableSubtext.textContent = `${state.activeEmployeeName} さんの打刻ログ`;
+        } else {
+            elements.btnRoleAdmin.className = "px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 bg-purple-600 text-white shadow";
+            elements.btnRoleWorker.className = "px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 text-slate-400 hover:text-white";
+
+            // Show header settings for admins
+            if (elements.btnHeaderSettings) elements.btnHeaderSettings.classList.remove('hidden');
+
+            elements.viewWorkerContainer.classList.add('hidden');
+            elements.viewAdminContainer.classList.remove('hidden');
+
+            elements.roleBadgeIcon.className = "p-2.5 rounded-xl bg-purple-100 text-purple-700 font-bold text-lg";
+            elements.roleBadgeIcon.innerHTML = '<i class="fa-solid fa-user-gear"></i>';
+            elements.roleTitleLabel.textContent = "管理者モード";
+            elements.roleTitleLabel.className = "text-xs font-bold uppercase tracking-wider text-purple-600";
+            elements.activeUserBadge.textContent = "全社勤怠管理・集計";
+            elements.roleDescLabel.textContent = "リアルタイムの出勤状況一覧、全従業員の勤怠調整、データ一括ダウンロードが可能です。";
+
+            elements.tableTitleText.textContent = "全社勤怠マスターログ";
+            elements.tableSubtext.textContent = "全従業員またはフィルタ選択された対象の統合記録";
+        }
+    }
+
+    function initializeDateAndClock() {
+        updateClockDisplay();
+        setInterval(updateClockDisplay, 1000);
+    }
+
+    function updateClockDisplay() {
+        const now = new Date();
+        const daysJP = ['日', '月', '火', '水', '木', '金', '土'];
+        
+        const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 (${daysJP[now.getDay()]})`;
+        const timeStr = now.toTimeString().split(' ')[0];
+
+        if (elements.currentDate) elements.currentDate.textContent = dateStr;
+        if (elements.currentTime) elements.currentTime.textContent = timeStr;
+        if (elements.adminTodayDate) elements.adminTodayDate.textContent = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+        // Get active user's status
+        const activeUserLive = getUserLiveState(state.activeEmployeeName);
+        if (activeUserLive.status === 'WORKING' && activeUserLive.startTime) {
+            const elapsedMs = (now - new Date(activeUserLive.startTime)) - (activeUserLive.accumulatedBreakMs || 0);
+            elements.todayWorkTimer.textContent = formatMsToHMS(Math.max(0, elapsedMs));
+        } else if (activeUserLive.status === 'BREAK' && activeUserLive.startTime) {
+            const elapsedMs = (new Date(activeUserLive.breakStartTime || now) - new Date(activeUserLive.startTime)) - (activeUserLive.accumulatedBreakMs || 0);
+            elements.todayWorkTimer.textContent = formatMsToHMS(Math.max(0, elapsedMs));
+        } else if (activeUserLive.status === 'OFF') {
+            elements.todayWorkTimer.textContent = "00:00:00";
+        }
+    }
+
+    function startTimerLoop() {
+        setInterval(() => {
+            const live = getUserLiveState(state.activeEmployeeName);
+            if (live.status === 'WORKING' || live.status === 'BREAK') {
+                updateClockDisplay();
+            }
+        }, 1000);
+    }
+
+    function initializeMonthPicker() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const ym = `${yyyy}-${mm}`;
+        elements.monthPicker.value = ym;
+        if (elements.adminMonthPicker) elements.adminMonthPicker.value = ym;
+    }
+
+    function changeMonth(delta) {
+        const picker = state.currentRole === 'admin' ? elements.adminMonthPicker : elements.monthPicker;
+        const [y, m] = picker.value.split('-').map(Number);
+        const date = new Date(y, m - 1 + delta, 1);
+        const newY = date.getFullYear();
+        const newM = String(date.getMonth() + 1).padStart(2, '0');
+        const ym = `${newY}-${newM}`;
+        elements.monthPicker.value = ym;
+        if (elements.adminMonthPicker) elements.adminMonthPicker.value = ym;
+        renderAttendanceTable();
+    }
+
+    function getUserLiveState(empName) {
+        if (!state.userLiveStates[empName]) {
+            state.userLiveStates[empName] = {
+                status: 'OFF',
+                activeWorkType: '出社',
+                startTime: null,
+                breakStartTime: null,
+                accumulatedBreakMs: 0
+            };
+        }
+        return state.userLiveStates[empName];
+    }
+
+    function setWorkType(type) {
+        const live = getUserLiveState(state.activeEmployeeName);
+        live.activeWorkType = type;
+        saveToLocalStorage();
+
+        document.querySelectorAll('.work-type-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+            btn.classList.add('bg-white', 'text-slate-700', 'border-slate-200');
+        });
+        const targetId = type === '出社' ? 'workTypeOffice' : type === 'リモート' ? 'workTypeRemote' : 'workTypeDirect';
+        const targetBtn = document.getElementById(targetId);
+        if (targetBtn) {
+            targetBtn.classList.remove('bg-white', 'text-slate-700', 'border-slate-200');
+            targetBtn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+        }
+    }
+
+    function handleClockIn() {
+        const now = new Date();
+        const live = getUserLiveState(state.activeEmployeeName);
+
+        live.status = 'WORKING';
+        live.startTime = now;
+        live.accumulatedBreakMs = 0;
+        live.breakStartTime = null;
+
+        elements.lastPunchTime.textContent = formatHM(now);
+        saveToLocalStorage();
+        updatePunchButtonsUI();
+        renderAdminDashboard();
+        showToast(`${state.activeEmployeeName} さんの出勤を打刻しました！`, "success");
+
+        sendToGAS({
+            action: 'CLOCK_IN',
+            date: formatDateISO(now),
+            employeeName: state.activeEmployeeName,
+            type: live.activeWorkType,
+            clockIn: formatHM(now),
+            clockOut: '--:--',
+            breakMinutes: 0,
+            workHours: 0,
+            overtimeHours: 0,
+            note: elements.workNoteInput.value
+        });
+    }
+
+    function handleBreakStart() {
+        const live = getUserLiveState(state.activeEmployeeName);
+        if (live.status !== 'WORKING') return;
+        const now = new Date();
+        live.status = 'BREAK';
+        live.breakStartTime = now;
+
+        elements.lastPunchTime.textContent = formatHM(now);
+        saveToLocalStorage();
+        updatePunchButtonsUI();
+        renderAdminDashboard();
+        showToast("休憩に入りました", "info");
+    }
+
+    function handleBreakEnd() {
+        const live = getUserLiveState(state.activeEmployeeName);
+        if (live.status !== 'BREAK') return;
+        const now = new Date();
+        if (live.breakStartTime) {
+            live.accumulatedBreakMs += (now - new Date(live.breakStartTime));
+        }
+        live.status = 'WORKING';
+        live.breakStartTime = null;
+
+        elements.lastPunchTime.textContent = formatHM(now);
+        saveToLocalStorage();
+        updatePunchButtonsUI();
+        renderAdminDashboard();
+        showToast("休憩から復帰しました", "info");
+    }
+
+    function handleClockOut() {
+        const live = getUserLiveState(state.activeEmployeeName);
+        if (live.status === 'OFF') return;
+        const now = new Date();
+        const dateStr = formatDateISO(live.startTime || now);
+        const clockInTimeStr = formatHM(live.startTime || now);
+        const clockOutTimeStr = formatHM(now);
+
+        if (live.status === 'BREAK' && live.breakStartTime) {
+            live.accumulatedBreakMs += (now - new Date(live.breakStartTime));
+        }
+
+        const totalBreakMinutes = Math.round(live.accumulatedBreakMs / (1000 * 60));
+        const grossMs = now - new Date(live.startTime || now);
+        const netMs = Math.max(0, grossMs - live.accumulatedBreakMs);
+        const workHoursDecimal = parseFloat((netMs / (1000 * 60 * 60)).toFixed(2));
+        
+        const stdHours = parseFloat(state.settings.standardHours || 8);
+        const overtimeHoursDecimal = parseFloat(Math.max(0, workHoursDecimal - stdHours).toFixed(2));
+
+        const newLog = {
+            id: Date.now().toString(),
+            employeeName: state.activeEmployeeName,
+            date: dateStr,
+            type: live.activeWorkType,
+            clockIn: clockInTimeStr,
+            clockOut: clockOutTimeStr,
+            breakMinutes: totalBreakMinutes,
+            workHours: workHoursDecimal,
+            overtimeHours: overtimeHoursDecimal,
+            note: elements.workNoteInput.value || ''
+        };
+
+        // Remove existing log for this user & date if present
+        state.attendanceLogs = state.attendanceLogs.filter(log => !(log.date === dateStr && log.employeeName === state.activeEmployeeName));
+        state.attendanceLogs.push(newLog);
+
+        // Reset live status
+        live.status = 'OFF';
+        live.startTime = null;
+        live.breakStartTime = null;
+        live.accumulatedBreakMs = 0;
+        elements.workNoteInput.value = '';
+
+        elements.lastPunchTime.textContent = clockOutTimeStr;
+        saveToLocalStorage();
+        updatePunchButtonsUI();
+        renderAttendanceTable();
+        renderAdminDashboard();
+        showToast(`${state.activeEmployeeName} さんの退勤を記録しました！`, "success");
+
+        sendToGAS(newLog);
+    }
+
+    function updatePunchButtonsUI() {
+        const live = getUserLiveState(state.activeEmployeeName);
+        const { status } = live;
+
+        if (status === 'OFF') {
+            elements.currentStatusText.textContent = "未出勤 (退社中)";
+            elements.statusDot.className = "relative inline-flex rounded-full h-3.5 w-3.5 bg-slate-400";
+            elements.statusDotPulse.children[0].className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75";
+
+            elements.btnClockIn.disabled = false;
+            elements.btnClockIn.className = "py-3.5 px-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 active:scale-[0.98] transition-all flex items-center justify-center space-x-2 cursor-pointer";
+
+            elements.btnClockOut.disabled = true;
+            elements.btnClockOut.className = "py-3.5 px-4 rounded-xl font-bold text-slate-400 bg-slate-100 cursor-not-allowed transition-all flex items-center justify-center space-x-2";
+
+            elements.btnBreakStart.disabled = true;
+            elements.btnBreakStart.className = "py-2.5 px-4 rounded-xl font-semibold text-xs text-slate-400 bg-slate-100 cursor-not-allowed transition-all flex items-center justify-center space-x-2";
+            
+            elements.btnBreakEnd.disabled = true;
+            elements.btnBreakEnd.className = "py-2.5 px-4 rounded-xl font-semibold text-xs text-slate-400 bg-slate-100 cursor-not-allowed transition-all flex items-center justify-center space-x-2";
+
+        } else if (status === 'WORKING') {
+            elements.currentStatusText.textContent = "勤務中";
+            elements.statusDot.className = "relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500";
+            elements.statusDotPulse.children[0].className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+
+            elements.btnClockIn.disabled = true;
+            elements.btnClockIn.className = "py-3.5 px-4 rounded-xl font-bold text-slate-400 bg-slate-100 cursor-not-allowed transition-all flex items-center justify-center space-x-2";
+
+            elements.btnClockOut.disabled = false;
+            elements.btnClockOut.className = "py-3.5 px-4 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-md shadow-rose-500/20 active:scale-[0.98] transition-all flex items-center justify-center space-x-2 cursor-pointer";
+
+            elements.btnBreakStart.disabled = false;
+            elements.btnBreakStart.className = "py-2.5 px-4 rounded-xl font-semibold text-xs text-slate-700 bg-slate-200 hover:bg-amber-500 hover:text-white transition-all flex items-center justify-center space-x-2 cursor-pointer";
+
+            elements.btnBreakEnd.disabled = true;
+            elements.btnBreakEnd.className = "py-2.5 px-4 rounded-xl font-semibold text-xs text-slate-400 bg-slate-100 cursor-not-allowed transition-all flex items-center justify-center space-x-2";
+
+        } else if (status === 'BREAK') {
+            elements.currentStatusText.textContent = "休憩中";
+            elements.statusDot.className = "relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-500";
+            elements.statusDotPulse.children[0].className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
+
+            elements.btnClockIn.disabled = true;
+            elements.btnClockIn.className = "py-3.5 px-4 rounded-xl font-bold text-slate-400 bg-slate-100 cursor-not-allowed transition-all flex items-center justify-center space-x-2";
+
+            elements.btnClockOut.disabled = false;
+            elements.btnClockOut.className = "py-3.5 px-4 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer";
+
+            elements.btnBreakStart.disabled = true;
+            elements.btnBreakStart.className = "py-2.5 px-4 rounded-xl font-semibold text-xs text-slate-400 bg-slate-100 cursor-not-allowed transition-all flex items-center justify-center space-x-2";
+
+            elements.btnBreakEnd.disabled = false;
+            elements.btnBreakEnd.className = "py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer";
+        }
+
+        setWorkType(live.activeWorkType || '出社');
+    }
+
+    function updateGasBadgeUI() {
+        if (state.settings.gasUrl && state.settings.gasUrl.trim() !== '') {
+            elements.gasStatusDot.className = "w-2 h-2 rounded-full bg-emerald-500";
+            elements.gasStatusText.textContent = "GAS自動連携中";
+            elements.gasStatusBadge.className = "hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-950/40 text-emerald-300 border border-emerald-500/30";
+        } else {
+            elements.gasStatusDot.className = "w-2 h-2 rounded-full bg-slate-500";
+            elements.gasStatusText.textContent = "GAS未設定";
+            elements.gasStatusBadge.className = "hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700";
+        }
+    }
+
+    function renderAdminDashboard() {
+        let countWorking = 0;
+        let countBreak = 0;
+        let countOff = 0;
+
+        elements.adminTeamGrid.innerHTML = '';
+
+        state.employees.forEach(emp => {
+            const live = getUserLiveState(emp);
+            let badgeBg = 'bg-slate-800 border-slate-700 text-slate-400';
+            let statusName = '未出勤';
+            let statusIcon = 'fa-moon';
+
+            if (live.status === 'WORKING') {
+                countWorking++;
+                badgeBg = 'bg-emerald-950/60 border-emerald-500/30 text-emerald-300';
+                statusName = '勤務中';
+                statusIcon = 'fa-briefcase';
+            } else if (live.status === 'BREAK') {
+                countBreak++;
+                badgeBg = 'bg-amber-950/60 border-amber-500/30 text-amber-300';
+                statusName = '休憩中';
+                statusIcon = 'fa-mug-hot';
+            } else {
+                countOff++;
+            }
+
+            const card = document.createElement('div');
+            card.className = `p-3.5 rounded-xl border flex items-center justify-between ${badgeBg}`;
+            card.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs">
+                        ${emp.substring(0, 1)}
+                    </div>
+                    <div>
+                        <p class="font-bold text-xs text-white">${emp}</p>
+                        <p class="text-[10px] opacity-75">${live.activeWorkType || '通常勤務'}</p>
+                    </div>
+                </div>
+                <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-black/30 flex items-center gap-1">
+                    <i class="fa-solid ${statusIcon} text-[10px]"></i> ${statusName}
+                </span>
+            `;
+            elements.adminTeamGrid.appendChild(card);
+        });
+
+        elements.adminCountWorking.textContent = countWorking;
+        elements.adminCountBreak.textContent = countBreak;
+        elements.adminCountOff.textContent = countOff;
+    }
+
+    function renderAttendanceTable() {
+        const isWorker = state.currentRole === 'worker';
+        const selectedMonth = isWorker ? elements.monthPicker.value : elements.adminMonthPicker.value;
+        
+        elements.tableMonthLabel.textContent = selectedMonth ? selectedMonth.replace('-', '年') + '月' : '';
+
+        // Filter logs according to role and selected filters
+        let filteredLogs = state.attendanceLogs.filter(log => log.date && log.date.startsWith(selectedMonth));
+
+        if (isWorker) {
+            filteredLogs = filteredLogs.filter(log => log.employeeName === state.activeEmployeeName);
+        } else {
+            const adminFilter = elements.adminEmployeeFilter.value;
+            if (adminFilter !== 'ALL') {
+                filteredLogs = filteredLogs.filter(log => log.employeeName === adminFilter);
+            }
+        }
+
+        filteredLogs.sort((a, b) => b.date.localeCompare(a.date));
+
+        elements.attendanceTableBody.innerHTML = '';
+
+        if (filteredLogs.length === 0) {
+            elements.emptyState.classList.remove('hidden');
+        } else {
+            elements.emptyState.classList.add('hidden');
+
+            filteredLogs.forEach(log => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+
+                const dateObj = new Date(log.date + 'T00:00:00');
+                const daysJP = ['日', '月', '火', '水', '木', '金', '土'];
+                const dayOfWeek = daysJP[dateObj.getDay()];
+                const dayClass = dateObj.getDay() === 0 ? 'text-rose-600 font-bold' : dateObj.getDay() === 6 ? 'text-blue-600 font-bold' : 'text-slate-700';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-medium whitespace-nowrap">
+                        ${log.date} <span class="text-xs ml-1 ${dayClass}">(${dayOfWeek})</span>
+                    </td>
+                    <td class="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1.5">
+                            <i class="fa-regular fa-user text-slate-400 text-xs"></i>
+                            ${log.employeeName || '未指定'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 whitespace-nowrap">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${getBadgeColorForType(log.type)}">
+                            ${log.type}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 font-mono font-medium text-slate-700 whitespace-nowrap">${log.clockIn}</td>
+                    <td class="py-3 px-4 font-mono font-medium text-slate-700 whitespace-nowrap">${log.clockOut}</td>
+                    <td class="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">${log.breakMinutes}分</td>
+                    <td class="py-3 px-4 font-mono font-bold text-blue-700 whitespace-nowrap">${log.workHours} h</td>
+                    <td class="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">${log.overtimeHours > 0 ? `<span class="text-amber-600 font-bold">+${log.overtimeHours} h</span>` : '0 h'}</td>
+                    <td class="py-3 px-4 text-xs text-slate-500 max-w-xs truncate">${log.note || '-'}</td>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <button onclick="openEditModal('${log.id}')" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                    </td>
+                `;
+                elements.attendanceTableBody.appendChild(tr);
+            });
+        }
+
+        calculateAndDisplayStats(filteredLogs);
+    }
+
+    function getBadgeColorForType(type) {
+        switch (type) {
+            case '出社': return 'bg-blue-50 text-blue-700 border border-blue-200';
+            case 'リモート': return 'bg-purple-50 text-purple-700 border border-purple-200';
+            case '直行直帰': return 'bg-teal-50 text-teal-700 border border-teal-200';
+            case '有給休暇': return 'bg-amber-50 text-amber-700 border border-amber-200';
+            default: return 'bg-slate-100 text-slate-700';
+        }
+    }
+
+    function calculateAndDisplayStats(logs) {
+        const totalDays = logs.length;
+        const totalHours = logs.reduce((acc, curr) => acc + (parseFloat(curr.workHours) || 0), 0);
+        const totalOvertime = logs.reduce((acc, curr) => acc + (parseFloat(curr.overtimeHours) || 0), 0);
+        const avgHours = totalDays > 0 ? (totalHours / totalDays) : 0;
+
+        if (elements.statDays) elements.statDays.textContent = totalDays;
+        if (elements.statTotalHours) elements.statTotalHours.textContent = totalHours.toFixed(1);
+        if (elements.statOvertime) elements.statOvertime.textContent = totalOvertime.toFixed(1);
+        if (elements.statAvgHours) elements.statAvgHours.textContent = avgHours.toFixed(1);
+    }
+
+    function copyTableForSpreadsheet() {
+        const isWorker = state.currentRole === 'worker';
+        const selectedMonth = isWorker ? elements.monthPicker.value : elements.adminMonthPicker.value;
+
+        let logs = state.attendanceLogs.filter(log => log.date.startsWith(selectedMonth));
+        if (isWorker) {
+            logs = logs.filter(log => log.employeeName === state.activeEmployeeName);
+        } else if (elements.adminEmployeeFilter.value !== 'ALL') {
+            logs = logs.filter(log => log.employeeName === elements.adminEmployeeFilter.value);
+        }
+
+        if (logs.length === 0) {
+            showToast("コピー対象のデータがありません", "warning");
+            return;
+        }
+
+        logs.sort((a, b) => a.date.localeCompare(b.date));
+
+        let tsvContent = "日付\t名前\t区分\t出勤\t退勤\t休憩(分)\t実働(h)\t残業(h)\tメモ\n";
+        logs.forEach(log => {
+            tsvContent += `${log.date}\t${log.employeeName || ''}\t${log.type}\t${log.clockIn}\t${log.clockOut}\t${log.breakMinutes}\t${log.workHours}\t${log.overtimeHours}\t${log.note || ''}\n`;
+        });
+
+        const textArea = document.createElement("textarea");
+        textArea.value = tsvContent;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showToast("スプレッドシート用TSVをコピーしました！(Ctrl+Vで貼り付け可)", "success");
+        } catch (err) {
+            showToast("コピーに失敗しました", "error");
+        }
+        document.body.removeChild(textArea);
+        closeExportModal();
+    }
+
+    function exportToCSV() {
+        const isWorker = state.currentRole === 'worker';
+        const selectedMonth = isWorker ? elements.monthPicker.value : elements.adminMonthPicker.value;
+
+        let logs = state.attendanceLogs.filter(log => log.date.startsWith(selectedMonth));
+        if (isWorker) {
+            logs = logs.filter(log => log.employeeName === state.activeEmployeeName);
+        } else if (elements.adminEmployeeFilter.value !== 'ALL') {
+            logs = logs.filter(log => log.employeeName === elements.adminEmployeeFilter.value);
+        }
+
+        if (logs.length === 0) {
+            showToast("出力するデータがありません", "warning");
+            return;
+        }
+
+        logs.sort((a, b) => a.date.localeCompare(b.date));
+
+        let csvContent = "\uFEFF日付,氏名,区分,出勤,退勤,休憩時間(分),実働時間(時間),残業時間(時間),メモ\n";
+        logs.forEach(log => {
+            const noteEscaped = `"${(log.note || '').replace(/"/g, '""')}"`;
+            csvContent += `${log.date},${log.employeeName || ''},${log.type},${log.clockIn},${log.clockOut},${log.breakMinutes},${log.workHours},${log.overtimeHours},${noteEscaped}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `勤怠データ_${selectedMonth}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast("CSVファイルをダウンロードしました", "success");
+        closeExportModal();
+    }
+
+    async function sendToGAS(logData) {
+        const url = state.settings.gasUrl;
+        if (!url || url.trim() === '') return;
+
+        try {
+            await fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(logData)
+            });
+            showToast("Googleスプレッドシートに送信しました", "info");
+        } catch (e) {
+            console.error("GAS Sync Error:", e);
+            showToast("スプレッドシートへの送信に失敗しました", "error");
+        }
+    }
+
+    async function syncAllToGAS() {
+        if (!state.settings.gasUrl) {
+            showToast("設定画面でGAS Web App URLを設定してください", "warning");
+            openSettingsModal();
+            return;
+        }
+
+        const isWorker = state.currentRole === 'worker';
+        const selectedMonth = isWorker ? elements.monthPicker.value : elements.adminMonthPicker.value;
+
+        let logs = state.attendanceLogs.filter(log => log.date.startsWith(selectedMonth));
+        if (isWorker) {
+            logs = logs.filter(log => log.employeeName === state.activeEmployeeName);
+        } else if (elements.adminEmployeeFilter.value !== 'ALL') {
+            logs = logs.filter(log => log.employeeName === elements.adminEmployeeFilter.value);
+        }
+
+        if (logs.length === 0) {
+            showToast("送信対象のデータがありません", "warning");
+            return;
+        }
+
+        showToast("GASへ一括送信中...", "info");
+        for (const log of logs) {
+            await sendToGAS(log);
+        }
+        showToast(`${logs.length} 件の記録を送信完了しました！`, "success");
+        closeExportModal();
+    }
+
+    async function testGasConnection() {
+        const url = document.getElementById('settingGasUrl').value;
+        if (!url) {
+            showToast("URLを入力してください", "warning");
+            return;
+        }
+
+        try {
+            showToast("送信テスト中...", "info");
+            await fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: formatDateISO(new Date()),
+                    employeeName: '接続テストユーザー',
+                    type: 'テスト送信',
+                    clockIn: '09:00',
+                    clockOut: '18:00',
+                    breakMinutes: 60,
+                    workHours: 8,
+                    overtimeHours: 0,
+                    note: 'システム接続確認テスト'
+                })
+            });
+            showToast("テストデータを送信しました！スプレッドシートをご確認ください。", "success");
+        } catch (e) {
+            showToast("送信失敗: URLをご確認ください", "error");
+        }
+    }
+
+    function openSettingsModal() {
+        if (state.currentRole !== 'admin') {
+            pendingAuthCallback = () => {
+                switchRole('admin');
+                openSettingsModal();
+            };
+            document.getElementById('adminPinInput').value = '';
+            document.getElementById('adminAuthModal').classList.remove('hidden');
+            return;
+        }
+
+        document.getElementById('settingEmployeeListText').value = state.employees.join('\n');
+        document.getElementById('settingStandardHours').value = state.settings.standardHours || 8;
+        document.getElementById('settingAdminPin').value = state.settings.adminPin || '1234';
+        document.getElementById('settingGasUrl').value = state.settings.gasUrl || '';
+        document.getElementById('settingCustomBaseUrl').value = state.settings.customBaseUrl || '';
+
+        populateEmployeeDropdowns();
+        document.getElementById('settingsModal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+        document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    function saveSettings() {
+        const rawEmp = document.getElementById('settingEmployeeListText').value;
+        const newEmps = rawEmp.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+
+        if (newEmps.length > 0) {
+            state.employees = newEmps;
+        }
+
+        state.settings.standardHours = parseFloat(document.getElementById('settingStandardHours').value) || 8;
+        state.settings.adminPin = document.getElementById('settingAdminPin').value.trim() || '1234';
+        state.settings.gasUrl = document.getElementById('settingGasUrl').value.trim();
+        state.settings.customBaseUrl = document.getElementById('settingCustomBaseUrl').value.trim();
+
+        if (!state.employees.includes(state.activeEmployeeName)) {
+            state.activeEmployeeName = state.employees[0];
+        }
+
+        saveToLocalStorage();
+        populateEmployeeDropdowns();
+        updateGasBadgeUI();
+        updateRoleUI();
+        updatePunchButtonsUI();
+        renderAttendanceTable();
+        renderAdminDashboard();
+        closeSettingsModal();
+        showToast("設定を保存しました", "success");
+    }
+
+    function openManualAddModal() {
+        populateEmployeeDropdowns();
+        document.getElementById('editModalTitle').innerHTML = '<i class="fa-solid fa-plus text-blue-400"></i> 勤怠記録の手動登録';
+        document.getElementById('editEntryId').value = '';
+        document.getElementById('editEmployeeSelect').value = state.activeEmployeeName;
+        document.getElementById('editDate').value = formatDateISO(new Date());
+        document.getElementById('editType').value = '出社';
+        document.getElementById('editClockIn').value = '09:00';
+        document.getElementById('editClockOut').value = '18:00';
+        document.getElementById('editBreakMinutes').value = state.settings.defaultBreakMinutes || 60;
+        document.getElementById('editNote').value = '';
+        document.getElementById('btnDeleteEntry').classList.add('hidden');
+
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function openEditModal(entryId) {
+        populateEmployeeDropdowns();
+        const entry = state.attendanceLogs.find(l => l.id === entryId);
+        if (!entry) return;
+
+        document.getElementById('editModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-400"></i> 勤怠記録の修正';
+        document.getElementById('editEntryId').value = entry.id;
+        document.getElementById('editEmployeeSelect').value = entry.employeeName || state.activeEmployeeName;
+        document.getElementById('editDate').value = entry.date;
+        document.getElementById('editType').value = entry.type;
+        document.getElementById('editClockIn').value = entry.clockIn;
+        document.getElementById('editClockOut').value = entry.clockOut;
+        document.getElementById('editBreakMinutes').value = entry.breakMinutes;
+        document.getElementById('editNote').value = entry.note || '';
+        document.getElementById('btnDeleteEntry').classList.remove('hidden');
+
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.add('hidden');
+    }
+
+    function handleSaveEdit(e) {
+        e.preventDefault();
+        const id = document.getElementById('editEntryId').value;
+        const targetEmployee = document.getElementById('editEmployeeSelect').value;
+        const date = document.getElementById('editDate').value;
+        const type = document.getElementById('editType').value;
+        const clockIn = document.getElementById('editClockIn').value;
+        const clockOut = document.getElementById('editClockOut').value;
+        const breakMinutes = parseInt(document.getElementById('editBreakMinutes').value) || 0;
+        const note = document.getElementById('editNote').value;
+
+        let workHours = 0;
+        let overtimeHours = 0;
+
+        if (clockIn && clockOut) {
+            const inMs = new Date(`2000-01-01T${clockIn}:00`).getTime();
+            const outMs = new Date(`2000-01-01T${clockOut}:00`).getTime();
+            const grossNetMinutes = Math.max(0, (outMs - inMs) / (1000 * 60) - breakMinutes);
+            workHours = parseFloat((grossNetMinutes / 60).toFixed(2));
+
+            const stdHours = parseFloat(state.settings.standardHours || 8);
+            overtimeHours = parseFloat(Math.max(0, workHours - stdHours).toFixed(2));
+        }
+
+        const updatedLog = {
+            id: id || Date.now().toString(),
+            employeeName: targetEmployee,
+            date,
+            type,
+            clockIn: clockIn || '--:--',
+            clockOut: clockOut || '--:--',
+            breakMinutes,
+            workHours,
+            overtimeHours,
+            note
+        };
+
+        if (id) {
+            const index = state.attendanceLogs.findIndex(l => l.id === id);
+            if (index !== -1) state.attendanceLogs[index] = updatedLog;
+        } else {
+            state.attendanceLogs = state.attendanceLogs.filter(l => !(l.date === date && l.employeeName === targetEmployee));
+            state.attendanceLogs.push(updatedLog);
+        }
+
+        saveToLocalStorage();
+        renderAttendanceTable();
+        closeEditModal();
+        showToast("記録を保存しました", "success");
+
+        sendToGAS(updatedLog);
+    }
+
+    function handleDeleteEntry() {
+        const id = document.getElementById('editEntryId').value;
+        if (!id) return;
+
+        state.attendanceLogs = state.attendanceLogs.filter(l => l.id !== id);
+        saveToLocalStorage();
+        renderAttendanceTable();
+        closeEditModal();
+        showToast("記録を削除しました", "info");
+    }
+
+    function openExportModal() {
+        document.getElementById('exportModal').classList.remove('hidden');
+    }
+
+    function closeExportModal() {
+        document.getElementById('exportModal').classList.add('hidden');
+    }
+
+    function formatDateISO(d) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function formatHM(d) {
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        return `${hh}:${mm}`;
+    }
+
+    function formatMsToHMS(ms) {
+        const totalSec = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSec / 3600);
+        const minutes = Math.floor((totalSec % 3600) / 60);
+        const seconds = totalSec % 60;
+        return [hours, minutes, seconds].map(v => String(v).padStart(2, '0')).join(':');
+    }
+
+    function showToast(message, type = 'info') {
+        const toastContainer = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        
+        let bgClass = "bg-slate-800 text-white";
+        let icon = "fa-circle-info";
+
+        if (type === 'success') {
+            bgClass = "bg-emerald-600 text-white";
+            icon = "fa-circle-check";
+        } else if (type === 'warning') {
+            bgClass = "bg-amber-600 text-white";
+            icon = "fa-triangle-exclamation";
+        } else if (type === 'error') {
+            bgClass = "bg-rose-600 text-white";
+            icon = "fa-circle-xmark";
+        }
+
+        toast.className = `px-4 py-3 rounded-xl shadow-lg font-medium text-xs flex items-center space-x-2 transform transition-all duration-300 translate-y-2 opacity-0 ${bgClass} pointer-events-auto`;
+        toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+
+        toastContainer.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.remove('translate-y-2', 'opacity-0');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.add('translate-y-2', 'opacity-0');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 3500);
+    }
+</script>
+
