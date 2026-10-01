@@ -409,10 +409,10 @@
                         <i class="fa-solid fa-link text-blue-600"></i>
                         従業員別 専用打刻URL一覧 (LINE共有用)
                     </label>
-                    <span class="text-[10px] bg-blue-200/60 text-blue-800 px-2 py-0.5 rounded font-semibold">自動生成</span>
+                    <span class="text-[10px] bg-blue-200/60 text-blue-800 px-2 py-0.5 rounded font-semibold">GAS情報自動付属</span>
                 </div>
                 <p class="text-[11px] text-blue-700 leading-relaxed">
-                    以下の「コピー」ボタンを押すと、対象の従業員専用のURLがコピーされます。LINEやメールで共有すると、そのパートさんは名前選択不要・他人のデータ閲覧不可の状態で即座に打刻できます。
+                    以下の「コピー」ボタンを押すと、対象の従業員専用URLがコピーされます。GASの連携情報も含まれるため、別端末で開いても自動的にスプレッドシート連携が有効になります。
                 </p>
                 <div id="personalUrlList" class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                     <!-- Rendered by JS -->
@@ -756,7 +756,7 @@ function doPost(e) {
 
     window.onload = function() {
         loadFromLocalStorage();
-        checkUrlUserParameter(); // URL Param handler for dedicated user URL
+        checkUrlUserParameter(); // URL Param handler for dedicated user URL & GAS URL
         populateEmployeeDropdowns();
         initializeDateAndClock();
         initializeMonthPicker();
@@ -768,17 +768,33 @@ function doPost(e) {
         startTimerLoop();
     };
 
-    // Handles URL query parameters like index.html?user=山田%20太郎
+    // Handles URL query parameters like index.html?user=山田%20太郎&gas=https://...
     function checkUrlUserParameter() {
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const userParam = urlParams.get('user');
+            const gasParam = urlParams.get('gas');
+
+            let updated = false;
+
             if (userParam) {
                 const decodedUser = decodeURIComponent(userParam).trim();
                 if (state.employees.includes(decodedUser)) {
                     state.activeEmployeeName = decodedUser;
-                    saveToLocalStorage();
+                    updated = true;
                 }
+            }
+
+            if (gasParam) {
+                const decodedGasUrl = decodeURIComponent(gasParam).trim();
+                if (decodedGasUrl.startsWith('http')) {
+                    state.settings.gasUrl = decodedGasUrl;
+                    updated = true;
+                }
+            }
+
+            if (updated) {
+                saveToLocalStorage();
             }
         } catch (e) {
             console.error("URL Parameter parsing error:", e);
@@ -866,8 +882,14 @@ function doPost(e) {
             container.appendChild(warningBanner);
         }
 
+        const currentGasUrl = state.settings.gasUrl ? state.settings.gasUrl.trim() : '';
+
         state.employees.forEach(emp => {
-            const empUrl = `${baseUrl}?user=${encodeURIComponent(emp)}`;
+            let empUrl = `${baseUrl}?user=${encodeURIComponent(emp)}`;
+            if (currentGasUrl) {
+                empUrl += `&gas=${encodeURIComponent(currentGasUrl)}`;
+            }
+
             const item = document.createElement('div');
             item.className = "flex items-center justify-between bg-white p-2 rounded-lg border border-blue-100 text-xs";
             item.innerHTML = `
