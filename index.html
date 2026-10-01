@@ -1,3 +1,22 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorkLog PRO - クラウド勤怠管理</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Font Icon CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col font-sans text-slate-800 antialiased">
+
 <!-- Navigation Header -->
 <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -212,7 +231,7 @@
                 </div>
 
                 <!-- Spreadsheet Export Quick Banner -->
-                <div class="hidden bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-2xl p-6 shadow-md relative overflow-hidden flex-col justify-between">
+                <div class="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-2xl p-6 shadow-md relative overflow-hidden flex flex-col justify-between">
                     <div class="absolute -right-6 -bottom-6 opacity-10 text-white text-9xl pointer-events-none">
                         <i class="fa-solid fa-file-excel"></i>
                     </div>
@@ -453,24 +472,33 @@
                 <div class="mt-3 space-y-2 text-slate-600">
                     <p>Googleスプレッドシートの「拡張機能」&gt;「Apps Script」に以下のコードを貼り付けて、「Webアプリ」としてデプロイ（アクセス許可: 全員）してください。</p>
                     <pre class="bg-slate-900 text-slate-200 p-3 rounded-lg overflow-x-auto text-[11px] font-mono leading-relaxed select-all">
-
 function doPost(e) {
-var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-var data = JSON.parse(e.postData.contents);if (sheet.getLastRow() === 0) {
-sheet.appendRow($$"日付", "名前", "区分", "出勤", "退勤", "休憩時間", "実働時間", "残業時間", "メモ"$$);
-}sheet.appendRow([
-data.date,
-data.employeeName || '未指定',
-data.type,
-data.clockIn,
-data.clockOut,
-data.breakMinutes + '分',
-data.workHours + '時間',
-data.overtimeHours + '時間',
-data.note || ''
-]);return ContentService.createTextOutput(JSON.stringify({result: "success"}))
-.setMimeType(ContentService.MimeType.JSON);
-}            <div class="pt-2 flex justify-end space-x-3">
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["日付", "名前", "区分", "出勤", "退勤", "休憩時間", "実働時間", "残業時間", "メモ"]);
+  }
+
+  sheet.appendRow([
+    data.date,
+    data.employeeName || '未指定',
+    data.type,
+    data.clockIn,
+    data.clockOut,
+    data.breakMinutes + '分',
+    data.workHours + '時間',
+    data.overtimeHours + '時間',
+    data.note || ''
+  ]);
+
+  return ContentService.createTextOutput(JSON.stringify({result: "success"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                </div>
+            </details>
+
+            <div class="pt-2 flex justify-end space-x-3">
                 <button onclick="testGasConnection()" type="button" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-all">
                     接続テスト
                 </button>
@@ -1747,4 +1775,5 @@ data.note || ''
         }, 3500);
     }
 </script>
-
+</body>
+</html>
